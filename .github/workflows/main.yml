@@ -1,0 +1,30 @@
+on:
+  workflow_dispatch:
+  pull_request:
+    types: [opened]
+    branches: [main]
+
+name: build-and-deploy
+permissions:
+  contents: read
+jobs:
+  build-and-test:
+    permissions:
+      id-token: write
+      contents: read
+    uses: ./.github/workflows/ci.yml
+    secrets: inherit
+
+  deploy-to-prod:
+    needs: [build-and-test]
+    permissions:
+      id-token: write
+      contents: read
+    uses: ./.github/workflows/cd.yml
+    with:
+      image-tag: ${{ needs.build-and-test.outputs.image-tag }}
+    secrets: inherit
+
+  # TODO:
+  # Complete the workflow configuration for each jobs above (CI and CD)
+  # Create workflow summary

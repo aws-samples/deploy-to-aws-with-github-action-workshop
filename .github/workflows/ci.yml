@@ -1,0 +1,29 @@
+name: ci
+on:
+  workflow_dispatch:
+  workflow_call:
+    outputs:
+      image-tag:
+        description: "image tag"
+        value: ${{ jobs.build-and-test.outputs.image-tag }}
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write # need this for OIDC
+      contents: read
+    environment: main
+    outputs:
+      image-tag: ${{ steps.set-image-tag.outputs.IMAGE_TAG }} 
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      # TODO
+      # Configure AWS credentials
+      # CloudFormation Lint
+      # CloudFormation Static Analysis
+      # Build docker images
+      # Set new image tag
+      # Scan new image
+      # Generate summary

@@ -1,0 +1,47 @@
+on:
+  workflow_dispatch:
+    inputs:
+      image-tag:
+        default: "latest"
+        description: "Name to image tag to deploy"
+  workflow_call:
+    inputs:
+      working-directory:
+        required: false
+        type: string
+        default: '.'
+      image-tag:
+        required: true
+        type: string
+    outputs:
+      app_url:
+        description: "The ECS application URL"
+        value: ${{ jobs.deploy.outputs.app_url }}
+      app_ip:
+        description: "The ECS application public ip"
+        value: ${{ jobs.deploy.outputs.app_ip }}
+
+name: cd
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write # need this for OIDC
+      contents: read
+    environment: main
+    outputs:
+      app_url: ${{ steps.set_app_url.outputs.app_url }}
+      app_ip:  ${{ steps.set_app_ip.outputs.app_ip }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Echo
+        run: echo "image-tag is ${{ inputs.image-tag }}"
+
+      # TODO
+      # Configure AWS credentials
+      # Deploy ECS Cluster using templates/cluster.yaml
+      # Update ECS Task Definition with image tag
+      # Deploy new ECS Task
+      # Output the app URL
