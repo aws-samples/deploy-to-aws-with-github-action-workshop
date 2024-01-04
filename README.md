@@ -1,6 +1,6 @@
 # Deploying to AWS with GitHub Action
 
-Repository template for workshop: Deploying to AWS with GitHub Action
+Repository template for workshop: [Deploying to AWS with GitHub Action](https://catalog.us-east-1.prod.workshops.aws/workshops/6804609d-2342-4c7b-a406-a017aa496b6b)
 
 Follow the instruction on the workshop for steps by steps detail on how to use this template. This template includes several components as shown below.
 
