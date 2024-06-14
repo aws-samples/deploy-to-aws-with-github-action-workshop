@@ -17,7 +17,7 @@ jobs:
       image-tag: ${{ steps.set-image-tag.outputs.IMAGE_TAG }} 
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       # TODO
       # Configure AWS credentials
