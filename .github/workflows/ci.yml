@@ -18,11 +18,15 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
+      
+      - name: Print aws region
+        run: echo "The AWS region is ${{ vars.AWS_REGION }}"
 
          # TODO
       # Configure AWS credentials
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
+        
         with:
           role-to-assume: ${{ secrets.ROLE_TO_ASSUME }}
           aws-region: ${{ vars.AWS_REGION }}
@@ -52,7 +56,79 @@ jobs:
         run: |
           exit `grep Failures cfn_nag.out | awk '{ SUM += $3} END { print SUM }'`
           
+      
       # Build docker images
+      - name: List app files
+        run: |
+          ls -l $GITHUB_WORKSPACE/app
+    
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+        with:
+          mask-password: 'true'
+
+      - name: Detect Dockerfile changes
+        id: detect-dockerfile-changes
+        uses: tj-actions/changed-files@v40
+        with:
+          files: app/**
+
+      - name: Build, tag, and push image to AWS ECR
+        id: build-image
+        if: steps.detect-dockerfile-changes.outputs.any_modified == 'true'
+        env:
+          AWS_REGION: ${{ vars.AWS_REGION }}
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: ${{ vars.ECR_REPO_NAME }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          echo "List all the files that have changed: ${{ steps.detect-dockerfile-changes.outputs.all_changed_files }}"
+          echo "Building image $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+          cd app
+          docker build \
+              -t $ECR_REPOSITORY:latest \
+              -t $ECR_REGISTRY/$ECR_REPOSITORY:latest \
+              -t $ECR_REPOSITORY:$IMAGE_TAG \
+              -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:latest
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+          echo "Pushed image $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+
       # Set new image tag
+      - name: Set new image tag
+        id: set-image-tag
+        run: |
+          [[ -z $IMAGE_TAG ]] && echo "IMAGE_TAG=latest" >> $GITHUB_OUTPUT && echo "IMAGE_TAG=latest" >> $GITHUB_ENV || echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_OUTPUT && echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_ENV 
+    
+     
       # Scan new image
+      - name: ECR image scan
+        id: image-scan
+        uses: alexjurkiewicz/ecr-scan-image@v2.0.1
+        with:
+          repository: ${{ vars.ECR_REPO_NAME }}
+          tag: latest
+          fail_threshold: critical
+      
       # Generate summary
+      - name: Summary
+        id: summary
+        run: |
+          echo "## ECR Container Vulnerabilities found:" >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.image-scan.outputs.critical }} Critical" >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.image-scan.outputs.high }} High" >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.image-scan.outputs.medium }} Medium" >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.image-scan.outputs.low }} Low" >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.image-scan.outputs.informational }} Info" >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.image-scan.outputs.undefined }} Undefined" >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.image-scan.outputs.total }} Total" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY # this is a blank line
+          echo "## Cfn_Nag Summary:" >> $GITHUB_STEP_SUMMARY
+          cat cfn_nag.out | grep 'Failures\|templates' >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY # this is a blank line
+          echo "## ECR Container Image:" >> $GITHUB_STEP_SUMMARY
+          echo "image-tag: ${{ steps.set-image-tag.outputs.IMAGE_TAG }}" >> $GITHUB_STEP_SUMMARY
+
+      
