@@ -42,7 +42,7 @@ jobs:
       # TODO
       # Configure AWS credentials
       - name: Configure AWS Credentials
-        uses: actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.ROLE_TO_ASSUME}}
           aws-region: ${{ vars.AWS_REGION }}

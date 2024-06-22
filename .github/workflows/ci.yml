@@ -19,8 +19,6 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
       
-      - name: Print aws region
-        run: echo "The AWS region is ${{ vars.AWS_REGION }}"
 
          # TODO
       # Configure AWS credentials
